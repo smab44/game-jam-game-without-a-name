@@ -12,14 +12,20 @@ function _init()
 
     --player pos variables--
     p={
-    x=17,
-    y=70,
+        x=35,
+        y=80,
     }
 
     --enemy pos variables--
     e={
-    x=80,
-    y=70,
+        x=77,
+        y=80,
+    }
+
+    --cemera pos variables--
+    c={
+        x=0,
+        y=0,
     }
 
     ---attack timer and state---
@@ -46,12 +52,23 @@ function _init()
     now_bariar = 0
     bariar = 6
 
+
+    --cemera--
+    between =0
+
+    --debug--
+    middle = 64
+    
+
 end
 
 
 function _update60()
     player_attack()
 
+
+    between = (p.x + e.x) / 2 + 8 - 64
+    c.x = between
 
 
     ---attack timer---
@@ -109,6 +126,7 @@ end
 
 function _draw()
 	cls()
+    camera(c.x,c.y)
 	spr(valid_frames[flr(frame)], p.x, p.y, 2, 2)
     spr(e_valid_frames[flr(e_frame)], e.x, e.y, 2, 2)
 
@@ -117,6 +135,8 @@ function _draw()
         print("player frame:" ..frame)
         print("enemy state:" ..enemy_state)
         print("attack_timer:" ..attack_timer)
+
+        spr(64,middle-1,0)
     end
 end
 
