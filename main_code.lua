@@ -49,16 +49,17 @@ function _init()
     --cemera--
     between =0
 
-    --enemy attack movement--
-    first_attack =true
-    secend_attack =true
 
     --enemy attack movement and easing--
-    force =16
+    force =13
     default_force =force
     flip_e =false
     warning_timer =30
     warning_trigerred = 1
+
+    --attack and parry--
+    e_is_attacking =false
+    parried ="false"
 
     --debug--
     middle = 64
@@ -125,7 +126,7 @@ function _update60()
     end
 
 
-    ---enemy easing movement---
+    ---enemy easing movement--- --no explanation for u f u--
 
     if enemy_state == "attacking" and flip_e == false then
 
@@ -136,11 +137,17 @@ function _update60()
             warning_timer =30
             warning_trigerred = 2
 
+            e_is_attacking =true
+
             --easing--
             e.x -=force
             force-=1
             if e.x == -48 or e.x < -48 then
                 e.x =-48
+
+                e_is_attacking =false
+                parried ="false"
+
                 enemy_state = "idle"
                 flip_e = true
                 force =default_force
@@ -156,15 +163,30 @@ function _update60()
             warning_timer =30
             warning_trigerred = 1
 
+            e_is_attacking =true
+
             --easing--
             e.x +=force
-            force+=1
+            force-=1
             if e.x == 32 or e.x > 32 then
                 e.x =32
+
+                e_is_attacking =false
+                parried ="false"
+
                 enemy_state = "idle"
                 flip_e = false
                 force =default_force
             end
+        end
+    end
+
+    ---parry---
+    if player_state =="parry" and e_is_attacking ==true then
+        if warning_trigerred ==2 and e.x > -8 then
+            parried ="true"
+        elseif warning_trigerred ==1 and e.x < -8 then
+            parried ="true"
         end
     end
 
@@ -190,6 +212,8 @@ function _draw()
         print("---------")
         print(e.x)
         print(e.x+16)
+        print("---------")
+        print("is parried:" ..parried)
         
         spr(64,-1,0)
     end
