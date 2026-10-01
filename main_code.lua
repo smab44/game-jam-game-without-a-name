@@ -1,24 +1,17 @@
 
-    --if attack_timer > 0 then
-        --attack_timer -= 1
-    --else
-        --e_frame = 3
-        --attack_timer = rnd(max) + min
-    --end
-
 function _init()
 
     debug = true
 
     --player pos variables--
     p={
-        x=35,
+        x=0-8,
         y=80,
     }
-
+    --42
     --enemy pos variables--
     e={
-        x=77,
+        x=32,
         y=80,
     }
 
@@ -50,11 +43,22 @@ function _init()
     --timer--
     attack_timer = 60
     now_bariar = 0
-    bariar = 6
+    bariar = 4
 
 
     --cemera--
     between =0
+
+    --enemy attack movement--
+    first_attack =true
+    secend_attack =true
+
+    --enemy attack movement and easing--
+    force =16
+    default_force =force
+    flip_e =false
+    warning_timer =30
+    warning_trigerred = 1
 
     --debug--
     middle = 64
@@ -96,8 +100,6 @@ function _update60()
     end
 
 
-
-
     ---animation---
     if player_state == "attacking" then
         if frame < last_frame - speed then --chosing a frame number from valid_frames{}--
@@ -116,27 +118,80 @@ function _update60()
             e_frame += e_speed
         else    
             e_frame = e_first_frame
-            enemy_state = "idle"
+            --enemy_state = "idle"
         end
     elseif enemy_state == "idle" then
         e_frame = e_first_frame
     end
+
+
+    ---enemy easing movement---
+
+    if enemy_state == "attacking" and flip_e == false then
+
+        --warningtimer--
+        if warning_timer > 0 and warning_trigerred == 1 then
+            warning_timer -=1
+        else
+            warning_timer =30
+            warning_trigerred = 2
+
+            --easing--
+            e.x -=force
+            force-=1
+            if e.x == -48 or e.x < -48 then
+                e.x =-48
+                enemy_state = "idle"
+                flip_e = true
+                force =default_force
+            end
+        end
+
+    elseif enemy_state == "attacking" and flip_e == true then
+
+        --warningtimer--
+        if warning_timer > 0 and warning_trigerred == 2 then
+            warning_timer -=1
+        else
+            warning_timer =30
+            warning_trigerred = 1
+
+            --easing--
+            e.x +=force
+            force+=1
+            if e.x == 32 or e.x > 32 then
+                e.x =32
+                enemy_state = "idle"
+                flip_e = false
+                force =default_force
+            end
+        end
+    end
+
 
 end
 
 function _draw()
 	cls()
     camera(c.x,c.y)
-	spr(valid_frames[flr(frame)], p.x, p.y, 2, 2)
-    spr(e_valid_frames[flr(e_frame)], e.x, e.y, 2, 2)
+	spr(valid_frames[flr(frame)], p.x, p.y, 2, 2, flip_e)
+    spr(e_valid_frames[flr(e_frame)], e.x, e.y, 2, 2, flip_e)
 
     if debug == true then
-        print("player state:" ..player_state)
+        print("player state:" ..player_state ,between,0)
         print("player frame:" ..frame)
+        print("player x:" ..p.x)
+        print("---------")
         print("enemy state:" ..enemy_state)
         print("attack_timer:" ..attack_timer)
-
-        spr(64,middle-1,0)
+        print("enemy x:" ..e.x )
+        print("enemy x flr:" ..flr(e.x) )
+        print("force:" ..force )
+        print("---------")
+        print(e.x)
+        print(e.x+16)
+        
+        spr(64,-1,0)
     end
 end
 
@@ -145,35 +200,10 @@ end
 function player_attack()
 	if btn(4) then
 		player_state = "attacking"
---        attack_timer = 30
+        --attack_timer = 30
 	end
     if btn(5) then
 		player_state = "parry"
---        attack_timer = 30
+        --attack_timer = 30
 	end
 end
-
-
-
-
-
-
-
----attack timer an state---
-    --if attack_timer > 0 then
-        --attack_timer -= 1
-    --else
-        --player_state = "idle"
-    --end
-
-
-
-    --1 sec: 60
-    --2 sec: 120
-    --3 sec: 180
-    --4 sec: 240
-    --5 sec: 300
-    --6 sec: 360
-    --7 sec: 420
-    --8 sec: 480
-    --9 sec: 540
