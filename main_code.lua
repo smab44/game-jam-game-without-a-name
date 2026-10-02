@@ -85,10 +85,15 @@ function _init()
 
     sfx_played =false
 
+    level=1
+    score =0
+
     --debug--
     middle = 64
     debug =false
     
+    cemera_offset =100
+    score =0
 
 end
 
@@ -98,7 +103,11 @@ function _update60()
 
 
     between = (p.x + e.x) / 2 + 8 - 64
-    c.x = between
+    c.x = between+cemera_offset
+
+
+    --levels--
+
 
 
     ---attack timer---
@@ -140,8 +149,8 @@ function _update60()
         end
     elseif player_state == "parry" then
 
-        valid_frames={64,66,68}
-        if frame < last_frame - speed then --chosing a frame number from valid_frames{}--
+        valid_frames={64,66,68,70,72,74,76,78}
+        if frame < parry_last_frame - speed then --chosing a frame number from valid_frames{}--
             frame += speed
         else
             frame = first_frame
@@ -268,6 +277,8 @@ function _update60()
         else
             attack_coldown =default_attack_coldown
             enemy_hp -=1
+            score +=2
+            sfx(02)
         end
     end
 
@@ -277,6 +288,7 @@ function _update60()
         win =true
     end
 
+    text_x = between+cemera_offset
 end
 
 
@@ -286,13 +298,29 @@ end
 
 function _draw()
 	cls()
+    map()
     camera(c.x,c.y)
-	spr(valid_frames[flr(frame)], p.x, p.y, 2, 2, flip_e)
-    spr(e_valid_frames[flr(e_frame)], e.x, e.y, 2, 2, flip_e)
-    print(player_hp)
+	spr(valid_frames[flr(frame)], p.x+cemera_offset, p.y, 2, 2, flip_e)
+    spr(e_valid_frames[flr(e_frame)], e.x+cemera_offset, e.y, 2, 2, flip_e)
+
+    print("player hp: " ..player_hp,c.x+64-(48/2),20)
+    if score ==0 then
+        print("score: " ..score,c.x+64-(32/2),28) --8
+    elseif score >=1 then
+        print("score: " ..score .."00",c.x+64-(40/2),28)
+    elseif score >=10 then
+        print("score: " ..score .."00",c.x+64-(44/2),28) 
+    elseif score >=100 then
+        print("score: " ..score .."00",c.x+64-(48/2),28)
+    elseif score >=1000 then
+        print("score: " ..score .."00",c.x+64-(52/2),28)
+        print("get a fucking life",c.x+64-(72/2),36)
+    elseif score >=10000 then
+        print("score: " ..score .."00",c.x+64-(56/2),28)
+    end
 
     if debug == true then
-        print("player state:" ..player_state ,between,0)
+        print("player state:" ..player_state ,between+cemera_offset,0)
         print("player frame:" ..frame)
         --print("player x:" ..p.x)
         print("---------")
@@ -308,16 +336,24 @@ function _draw()
         print("is parried: " ..(parried and 'true' or 'false'))
         print("parried coldown: " ..enemy_parried_coldown)
         print("warning trigerred: " ..warning_trigerred)
+
+        if win == true then
+            print("u win")
+        end
         
         spr(96,-1,0)
     end
     
-    if win == true then
-        print("u win")
-    end
+
 end
 
-
+function add_score()
+    ones += 200
+        while ones >= 1000 do
+            ones -= 1000
+            thousands += 1
+        end
+end
 
 function player_attack()
 	if btn(4) then
