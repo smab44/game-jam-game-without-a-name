@@ -82,6 +82,9 @@ function _init()
 
     win =false
 
+
+    sfx_played =false
+
     --debug--
     middle = 64
     debug =false
@@ -222,11 +225,18 @@ function _update60()
             parried =true
             enemy_state = "attacked"
             e.x =enemy_x_after_parry
+            if sfx_played ==false then
+                sfx(01)
+                sfx_played =true
+            end
         elseif warning_trigerred ==1 and e.x < -8 then
             parried =true
             enemy_state = "attacked"
             e.x =enemy_x_after_parry*-1-16
-
+            if sfx_played ==false then
+                sfx(01)
+                sfx_played =true
+            end
         end
 
     end
@@ -240,11 +250,13 @@ function _update60()
 
         reset_enemy_to_the_left()
         enemy_parried_coldown =enemy_parried_coldown_default
+        sfx_played =false
 
     elseif parried ==true and warning_trigerred ==1 and enemy_parried_coldown >=0 then --if da enemy went right--
 
         reset_enemy_to_the_right()
         enemy_parried_coldown =enemy_parried_coldown_default
+        sfx_played =false
 
     end
 
