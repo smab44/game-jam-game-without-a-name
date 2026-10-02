@@ -4,8 +4,6 @@ __lua__
 
 function _init()
 
-    debug = true
-
     --player pos variables--
     p={
         x=0-8,
@@ -35,6 +33,13 @@ function _init()
     first_frame = 1
     last_frame = 11 --last frame can go higher than the actual last frame for more delay/impact on the last frame--
 
+    --animation--
+    parry_valid_frames={0,2,4,6,8,10,12,14}
+    parry_frame = 1
+    parry_speed = .3
+    parry_first_frame = 1
+    parry_last_frame = 11 --last frame can go higher than the actual last frame for more delay/impact on the last frame--
+
     --enemy animation--
     e_valid_frames={32,34,36,38,40,42,44}
     e_frame = 1
@@ -54,18 +59,35 @@ function _init()
 
 
     --enemy attack movement and easing--
-    force =13
+    force =12.5
     default_force =force
     flip_e =false
     warning_timer =30
     warning_trigerred = 1
 
     --attack and parry--
-    e_is_attacking =false
-    parried ="false"
+    enemy_is_attacking =false
+    parried =false
+    enemy_parried_coldown = 140
+    enemy_parried_coldown_default = enemy_parried_coldown
+
+    player_can_attack =true
+    enemy_x_after_parry =10
+
+    attack_coldown =30
+    default_attack_coldown =attack_coldown
+
+    parry_coldown =0
+    default_parry_coldown =100
+
+    enemy_hp =10
+    player_hp =5
+
+    win =false
 
     --debug--
     middle = 64
+    debug =false
     
 
 end
@@ -80,32 +102,45 @@ function _update60()
 
 
     ---attack timer---
-    if attack_timer > 0 then
-        attack_timer -= 1
+    if enemy_state =="idle" then
+        if attack_timer > 0 then
+            attack_timer -= 1
 
 
-    else --happens every ~frame--
+        else --happens every ~frame--
 
-        if rnd(100) < 21 then --1/4--  --every ~frame there will be a 1/4 chance of the enemy attacking--
-            enemy_state = "attacking"
-            attack_timer = 60 + rnd(120)
+            if rnd(100) < 21 then --1/4--  --every ~frame there will be a 1/4 chance of the enemy attacking--
+                enemy_state = "attacking"
+                attack_timer = 60 + rnd(120)
 
-        elseif now_bariar == bariar or now_bariar > bariar then --if the bariar crossed--
-            enemy_state = "attacking"
-            attack_timer = 60 + rnd(120)
-            now_bariar = 0
+            elseif now_bariar == bariar or now_bariar > bariar then --if the bariar crossed--
+                enemy_state = "attacking"
+                attack_timer = 60 + rnd(120)
+                now_bariar = 0
 
-        else --3/4--  --every ~frame there will be a 3/4 chance that nothing happens, for example: poring water on a rock!--
-            attack_timer = 60
-            now_bariar +=1 --adds 1 to bariar--
+            else --3/4--  --every ~frame there will be a 3/4 chance that nothing happens, for example: poring water on a rock!--
+                attack_timer = 60
+                now_bariar +=1 --adds 1 to bariar--
+
+            end
 
         end
-
     end
 
 
     ---animation---
     if player_state == "attacking" then
+
+        valid_frames={0,2,4,6,8,10,12,14}
+        if frame < last_frame - speed then --chosing a frame number from valid_frames{}--
+            frame += speed
+        else
+            frame = first_frame
+            player_state = "idle"
+        end
+    elseif player_state == "parry" then
+
+        valid_frames={64,66,68}
         if frame < last_frame - speed then --chosing a frame number from valid_frames{}--
             frame += speed
         else
@@ -113,8 +148,10 @@ function _update60()
             player_state = "idle"
         end
     elseif player_state == "idle" then
+        valid_frames={0,2,4,6,8,10,12,14}
         frame = first_frame
     end
+
 
     ---enemy_animation---
     if enemy_state == "attacking" then
@@ -129,6 +166,12 @@ function _update60()
     end
 
 
+    ---parry coldown---
+    if parry_coldown >=0 then
+        parry_coldown -=1
+    end
+
+
     ---enemy easing movement--- --no explanation for u f u--
 
     if enemy_state == "attacking" and flip_e == false then
@@ -140,20 +183,16 @@ function _update60()
             warning_timer =30
             warning_trigerred = 2
 
-            e_is_attacking =true
+            enemy_is_attacking =true
 
             --easing--
             e.x -=force
             force-=1
             if e.x == -48 or e.x < -48 then
-                e.x =-48
+                player_hp-=1
 
-                e_is_attacking =false
-                parried ="false"
-
-                enemy_state = "idle"
-                flip_e = true
-                force =default_force
+                reset_enemy_to_the_left()
+                
             end
         end
 
@@ -166,59 +205,106 @@ function _update60()
             warning_timer =30
             warning_trigerred = 1
 
-            e_is_attacking =true
+            enemy_is_attacking =true
 
             --easing--
             e.x +=force
             force-=1
             if e.x == 32 or e.x > 32 then
-                e.x =32
+                player_hp-=1
 
-                e_is_attacking =false
-                parried ="false"
-
-                enemy_state = "idle"
-                flip_e = false
-                force =default_force
+                reset_enemy_to_the_right()
+                
             end
         end
     end
 
-    ---parry---
-    if player_state =="parry" and e_is_attacking ==true then
+    ---parry---  ---checks if u can parry da enemy---
+    if player_state =="parry" and enemy_is_attacking ==true then
         if warning_trigerred ==2 and e.x > -8 then
-            parried ="true"
+            parried =true
+            enemy_state = "attacked"
+            e.x =enemy_x_after_parry
         elseif warning_trigerred ==1 and e.x < -8 then
-            parried ="true"
+            parried =true
+            enemy_state = "attacked"
+            e.x =enemy_x_after_parry*-1-16
+
+        end
+
+    end
+
+
+    ---coldown for the parried enemy---
+    if enemy_parried_coldown > 0 and parried ==true then
+        enemy_parried_coldown -=1
+
+    elseif parried ==true and warning_trigerred ==2 and enemy_parried_coldown >=0 then --if da enemy went left--
+
+        reset_enemy_to_the_left()
+        enemy_parried_coldown =enemy_parried_coldown_default
+
+    elseif parried ==true and warning_trigerred ==1 and enemy_parried_coldown >=0 then --if da enemy went right--
+
+        reset_enemy_to_the_right()
+        enemy_parried_coldown =enemy_parried_coldown_default
+
+    end
+
+
+    --attacking parried enemy--
+    if parried == true and player_state == "attacking" then
+        if attack_coldown >=0 then
+            attack_coldown -=1
+        else
+            attack_coldown =default_attack_coldown
+            enemy_hp -=1
         end
     end
 
 
+    --win statment--
+    if enemy_hp ==0 then
+        win =true
+    end
+
 end
+
+
+
+
+
 
 function _draw()
 	cls()
     camera(c.x,c.y)
 	spr(valid_frames[flr(frame)], p.x, p.y, 2, 2, flip_e)
     spr(e_valid_frames[flr(e_frame)], e.x, e.y, 2, 2, flip_e)
+    print(player_hp)
 
     if debug == true then
         print("player state:" ..player_state ,between,0)
         print("player frame:" ..frame)
-        print("player x:" ..p.x)
+        --print("player x:" ..p.x)
         print("---------")
         print("enemy state:" ..enemy_state)
         print("attack_timer:" ..attack_timer)
         print("enemy x:" ..e.x )
-        print("enemy x flr:" ..flr(e.x) )
-        print("force:" ..force )
+        --print("enemy x flr:" ..flr(e.x) )
+        --print("force:" ..force )
         print("---------")
         print(e.x)
         print(e.x+16)
         print("---------")
-        print("is parried:" ..parried)
+        print("is parried: " ..(parried and 'true' or 'false'))
+        print("parried coldown: " ..enemy_parried_coldown)
+        print("warning trigerred: " ..warning_trigerred)
         
-        spr(64,-1,0)
+        spr(96,-1,0)
+    end
+    
+    if win == true then
+        print("u win")
     end
 end
 
@@ -227,12 +313,37 @@ end
 function player_attack()
 	if btn(4) then
 		player_state = "attacking"
-        --attack_timer = 30
 	end
-    if btn(5) then
+    if btn(5) and parry_coldown <=0 then
 		player_state = "parry"
-        --attack_timer = 30
+        parry_coldown =default_parry_coldown
 	end
+end
+
+function reset_enemy_to_the_left()
+    e.x =-48
+
+    e_is_attacking =false
+    parried =false
+
+    enemy_state = "idle"
+    flip_e = true
+    force =default_force
+
+    warning_trigerred =2
+end
+
+function reset_enemy_to_the_right()
+    e.x =32
+
+    e_is_attacking =false
+    parried =false
+
+    enemy_state = "idle"
+    flip_e = false
+    force =default_force
+    
+    warning_trigerred =1
 end
 -->8
 
@@ -270,6 +381,22 @@ b0330333003333000000033333333330000000333330000000000000000330000000000003300000
 b0330303303300000000000000033330000033333300000000000000000330000000000003300000003333330000000000000333000000000000000000000000
 b0000000333000000000000000000000000033330000000000000000000330000000000003300000003333330000000000000330000000003333333333333333
 b0000000330000000000000000000000000000000000000000000000000330000000033333300000000000000000000000000000000000007070707070707070
+0000cccccc0000000000cccccc0000000000cccccc0000000000cccccc0000000000cccccc0000000000cccccc0000000000cccccc0000000000cccccc000000
+000cccccccc00000000cccccccc00000000cccccccc00000000cccccccc00000000cccccccc00000000cccccccc00000000cccccccc00000000cccccccc00000
+000cccccccc00000000cccccccc00000000cccccccc00000000cccccccc00000000cccccccc00000000cccccccc00000000cccccccc00000000cccccccc00000
+000cccccccc00000000cccccccc00000000cccccccc00000000cccccccc00000000cccccccc00000000cccccccc00000000cccccccc00000000cccccccc00000
+000cccccccc05550000cccccccc05550000cccccccc05550000cccccccc05550000cccccccc05550000cccccccc05550000cccccccc05550000cccccccc05550
+000ccccccc555555000ccccccc555555000ccccccc555555000ccccccc555555000ccccccc555555000ccccccc555555000ccccccc555555000ccccccc555555
+00005555555555550000555555555555000055555555555500005555555555550000555555555555000055555555555500005555555555550000555555555555
+00005555555555550000555555555555000055555555555500005555555555550000555555555555000055555555555500005555555555550000555555555555
+000c555555555555000c555555555555000c555555555555000c555555555555000c555555555555000c555555555555000c555555555555000c555555555555
+00ccc5555555500000ccc5555555500000ccc5555555500000ccc5555555500000ccc5555555500000ccc5555555500000ccc5555555500000ccc55555555000
+0ccccccc55c000000ccccccc55c000000ccccccc55c000000ccccccc55c000000ccccccc55c000000ccccccc55c000000ccccccc55c000000ccccccc55c00000
+0ccccccccccc00000ccccccccccc00000ccccccccccc00000ccccccccccc00000ccccccccccc00000ccccccccccc00000ccccccccccc00000ccccccccccc0000
+ccccccccccccc000ccccccccccccc000ccccccccccccc000ccccccccccccc000ccccccccccccc000ccccccccccccc000ccccccccccccc000ccccccccccccc000
+ccccccccccccc000ccccccccccccc000ccccccccccccc000ccccccccccccc000ccccccccccccc000ccccccccccccc000ccccccccccccc000ccccccccccccc000
+ccccccccccc00000ccccccccccc00000ccccccccccc00000ccccccccccc00000ccccccccccc00000ccccccccccc00000ccccccccccc00000ccccccccccc00000
+0ccccccc000000000ccccccc000000000ccccccc000000000ccccccc000000000ccccccc000000000ccccccc000000000ccccccc000000000ccccccc00000000
 bb000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
 bb000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
 bb000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
@@ -278,22 +405,6 @@ bb000000000000000000000000000000000000000000000000000000000000000000000000000000
 bb000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
 bb000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
 bb000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
-00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
-00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
-00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
-00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
-00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
-00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
-00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
-00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
-00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
-00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
-00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
-00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
-00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
-00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
-00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
-00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
 00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
 00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
 00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
