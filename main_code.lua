@@ -56,7 +56,7 @@ function _init()
 
 
     --enemy attack movement and easing--
-    force =12.5
+    force =12.16
     default_force =force
     flip_e =false
     warning_timer =30
@@ -78,14 +78,15 @@ function _init()
     default_parry_coldown =100
 
     enemy_hp =10
-    player_hp =5
+    player_hp =7
 
     win =false
 
 
     sfx_played =false
+    enemy_sfx_played_1 =false
+    enemy_sfx_played_2 =false
 
-    level=1
     score =0
 
     --debug--
@@ -95,200 +96,224 @@ function _init()
     cemera_offset =100
     score =0
 
+    game="play"
+
 end
 
 
 function _update60()
-    player_attack()
 
 
     between = (p.x + e.x) / 2 + 8 - 64
     c.x = between+cemera_offset
 
+    if game == "play" then
+        player_attack()
 
-    --levels--
-
-
-
-    ---attack timer---
-    if enemy_state =="idle" then
-        if attack_timer > 0 then
-            attack_timer -= 1
+        --levels--
 
 
-        else --happens every ~frame--
 
-            if rnd(100) < 21 then --1/4--  --every ~frame there will be a 1/4 chance of the enemy attacking--
-                enemy_state = "attacking"
-                attack_timer = 60 + rnd(120)
+        ---attack timer---
+        if enemy_state =="idle" then
+            if attack_timer > 0 then
+                attack_timer -= 1
 
-            elseif now_bariar == bariar or now_bariar > bariar then --if the bariar crossed--
-                enemy_state = "attacking"
-                attack_timer = 60 + rnd(120)
-                now_bariar = 0
 
-            else --3/4--  --every ~frame there will be a 3/4 chance that nothing happens, for example: poring water on a rock!--
-                attack_timer = 60
-                now_bariar +=1 --adds 1 to bariar--
+            else --happens every ~frame--
+
+                if rnd(100) < 21 then --1/4--  --every ~frame there will be a 1/4 chance of the enemy attacking--
+                    enemy_state = "attacking"
+                    attack_timer = 60 + rnd(120)
+
+                elseif now_bariar == bariar or now_bariar > bariar then --if the bariar crossed--
+                    enemy_state = "attacking"
+                    attack_timer = 60 + rnd(120)
+                    now_bariar = 0
+
+                else --3/4--  --every ~frame there will be a 3/4 chance that nothing happens, for example: poring water on a rock!--
+                    attack_timer = 60
+                    now_bariar +=1 --adds 1 to bariar--
+
+                end
 
             end
-
         end
-    end
 
 
-    ---animation---
-    if player_state == "attacking" then
+        ---animation---
+        if player_state == "attacking" then
 
-        valid_frames={0,2,4,6,8,10,12,14}
-        if frame < last_frame - speed then --chosing a frame number from valid_frames{}--
-            frame += speed
-        else
+            valid_frames={0,2,4,6,8,10,12,14}
+            if frame < last_frame - speed then --chosing a frame number from valid_frames{}--
+                frame += speed
+            else
+                frame = first_frame
+                player_state = "idle"
+            end
+        elseif player_state == "parry" then
+
+            valid_frames={64,66,68,70,72,74,76,78}
+            if frame < parry_last_frame - speed then --chosing a frame number from valid_frames{}--
+                frame += speed
+            else
+                frame = first_frame
+                player_state = "idle"
+            end
+        elseif player_state == "idle" then
+            valid_frames={0,2,4,6,8,10,12,14}
             frame = first_frame
-            player_state = "idle"
         end
-    elseif player_state == "parry" then
 
-        valid_frames={64,66,68,70,72,74,76,78}
-        if frame < parry_last_frame - speed then --chosing a frame number from valid_frames{}--
-            frame += speed
+
+        ---enemy_animation---
+        if enemy_state == "attacking" then
+            if e_frame < e_last_frame - e_speed then --chosing a frame number from valid_frames{}--
+                e_frame += e_speed
+            else    
+                e_frame = e_first_frame
+                --enemy_state = "idle"
+            end
         else
-            frame = first_frame
-            player_state = "idle"
-        end
-    elseif player_state == "idle" then
-        valid_frames={0,2,4,6,8,10,12,14}
-        frame = first_frame
-    end
-
-
-    ---enemy_animation---
-    if enemy_state == "attacking" then
-        if e_frame < e_last_frame - e_speed then --chosing a frame number from valid_frames{}--
-            e_frame += e_speed
-        else    
             e_frame = e_first_frame
-            --enemy_state = "idle"
         end
-    elseif enemy_state == "idle" then
-        e_frame = e_first_frame
-    end
+
+        if enemy_state =="attacked" then
+            e_frame = e_first_frame
+        end
 
 
-    ---parry coldown---
-    if parry_coldown >=0 then
-        parry_coldown -=1
-    end
+        ---parry coldown---
+        if parry_coldown >=0 then
+            parry_coldown -=1
+        end
 
 
-    ---enemy easing movement--- --no explanation for u f u--
+        ---enemy easing movement--- --no explanation for u f u--
 
-    if enemy_state == "attacking" and flip_e == false then
+        if enemy_state == "attacking" and flip_e == false then
 
-        --warningtimer--
-        if warning_timer > 0 and warning_trigerred == 1 then
-            warning_timer -=1
-        else
-            warning_timer =30
-            warning_trigerred = 2
+            --warningtimer--
+            if warning_timer > 0 and warning_trigerred == 1 then
+                warning_timer -=1
 
-            enemy_is_attacking =true
+                if enemy_sfx_played_1 ==false then
+                    sfx(03)
+                    enemy_sfx_played_1 =true
+                end
+            else
+                warning_timer =30
+                warning_trigerred = 2
 
-            --easing--
-            e.x -=force
-            force-=1
-            if e.x == -48 or e.x < -48 then
-                player_hp-=1
+                enemy_is_attacking =true
 
-                reset_enemy_to_the_left()
-                
+                if enemy_sfx_played_2 ==false then
+                    sfx(03)
+                    enemy_sfx_played_2 =true
+                end
+                --easing--
+                e.x -=force
+                force-=1
+                if e.x == -48 or e.x < -48 then
+                    player_hp-=1
+
+                    reset_enemy_to_the_left()
+                    
+                end
+            end
+
+        elseif enemy_state == "attacking" and flip_e == true then
+
+            --warningtimer--
+            if warning_timer > 0 and warning_trigerred == 2 then
+                warning_timer -=1
+
+                if enemy_sfx_played_1 ==false then
+                    sfx(03)
+                    enemy_sfx_played_1 =true
+                end
+            else
+                warning_timer =30
+                warning_trigerred = 1
+
+                enemy_is_attacking =true
+
+                if enemy_sfx_played_2 ==false then
+                    sfx(03)
+                    enemy_sfx_played_2 =true
+                end
+
+                --easing--
+                e.x +=force
+                force-=1
+                if e.x == 32 or e.x > 32 then
+                    player_hp-=1
+
+                    reset_enemy_to_the_right()
+                    
+                end
             end
         end
 
-    elseif enemy_state == "attacking" and flip_e == true then
-
-        --warningtimer--
-        if warning_timer > 0 and warning_trigerred == 2 then
-            warning_timer -=1
-        else
-            warning_timer =30
-            warning_trigerred = 1
-
-            enemy_is_attacking =true
-
-            --easing--
-            e.x +=force
-            force-=1
-            if e.x == 32 or e.x > 32 then
-                player_hp-=1
-
-                reset_enemy_to_the_right()
-                
+        ---parry---  ---checks if u can parry da enemy---
+        if player_state =="parry" and enemy_is_attacking ==true then
+            if warning_trigerred ==2 and e.x > -8 then
+                parried =true
+                enemy_state = "attacked"
+                e.x =enemy_x_after_parry
+                if sfx_played ==false then
+                    sfx(01)
+                    sfx_played =true
+                end
+            elseif warning_trigerred ==1 and e.x < -8 then
+                parried =true
+                enemy_state = "attacked"
+                e.x =enemy_x_after_parry*-1-16
+                if sfx_played ==false then
+                    sfx(01)
+                    sfx_played =true
+                end
             end
-        end
-    end
 
-    ---parry---  ---checks if u can parry da enemy---
-    if player_state =="parry" and enemy_is_attacking ==true then
-        if warning_trigerred ==2 and e.x > -8 then
-            parried =true
-            enemy_state = "attacked"
-            e.x =enemy_x_after_parry
-            if sfx_played ==false then
-                sfx(01)
-                sfx_played =true
-            end
-        elseif warning_trigerred ==1 and e.x < -8 then
-            parried =true
-            enemy_state = "attacked"
-            e.x =enemy_x_after_parry*-1-16
-            if sfx_played ==false then
-                sfx(01)
-                sfx_played =true
-            end
         end
 
-    end
+
+        ---coldown for the parried enemy---
+        if enemy_parried_coldown > 0 and parried ==true then
+            enemy_parried_coldown -=1
+
+        elseif parried ==true and warning_trigerred ==2 and enemy_parried_coldown >=0 then --if da enemy went left--
+
+            reset_enemy_to_the_left()
+            enemy_parried_coldown =enemy_parried_coldown_default
+            sfx_played =false
+
+        elseif parried ==true and warning_trigerred ==1 and enemy_parried_coldown >=0 then --if da enemy went right--
+
+            reset_enemy_to_the_right()
+            enemy_parried_coldown =enemy_parried_coldown_default
+            sfx_played =false
+
+        end
 
 
-    ---coldown for the parried enemy---
-    if enemy_parried_coldown > 0 and parried ==true then
-        enemy_parried_coldown -=1
-
-    elseif parried ==true and warning_trigerred ==2 and enemy_parried_coldown >=0 then --if da enemy went left--
-
-        reset_enemy_to_the_left()
-        enemy_parried_coldown =enemy_parried_coldown_default
-        sfx_played =false
-
-    elseif parried ==true and warning_trigerred ==1 and enemy_parried_coldown >=0 then --if da enemy went right--
-
-        reset_enemy_to_the_right()
-        enemy_parried_coldown =enemy_parried_coldown_default
-        sfx_played =false
-
-    end
+        --attacking parried enemy--
+        if parried == true and player_state == "attacking" then
+            if attack_coldown >=0 then
+                attack_coldown -=1
+            else
+                attack_coldown =default_attack_coldown
+                score +=2
+                sfx(02)
+            end
+        end
 
 
-    --attacking parried enemy--
-    if parried == true and player_state == "attacking" then
-        if attack_coldown >=0 then
-            attack_coldown -=1
-        else
-            attack_coldown =default_attack_coldown
-            enemy_hp -=1
-            score +=2
-            sfx(02)
+        --win statment--
+        if player_hp <=0 then
+            game ="lose"
         end
     end
-
-
-    --win statment--
-    if enemy_hp ==0 then
-        win =true
-    end
-
-    text_x = between+cemera_offset
 end
 
 
@@ -297,26 +322,34 @@ end
 
 
 function _draw()
-	cls()
-    map()
-    camera(c.x,c.y)
-	spr(valid_frames[flr(frame)], p.x+cemera_offset, p.y, 2, 2, flip_e)
-    spr(e_valid_frames[flr(e_frame)], e.x+cemera_offset, e.y, 2, 2, flip_e)
 
-    print("player hp: " ..player_hp,c.x+64-(48/2),20)
-    if score ==0 then
-        print("score: " ..score,c.x+64-(32/2),28) --8
-    elseif score >=1 then
-        print("score: " ..score .."00",c.x+64-(40/2),28)
-    elseif score >=10 then
-        print("score: " ..score .."00",c.x+64-(44/2),28) 
-    elseif score >=100 then
-        print("score: " ..score .."00",c.x+64-(48/2),28)
-    elseif score >=1000 then
-        print("score: " ..score .."00",c.x+64-(52/2),28)
-        print("get a fucking life",c.x+64-(72/2),36)
-    elseif score >=10000 then
-        print("score: " ..score .."00",c.x+64-(56/2),28)
+    if game =="play" then
+        cls()
+        map()
+        camera(c.x,c.y)
+        spr(valid_frames[flr(frame)], p.x+cemera_offset, p.y, 2, 2, flip_e)
+        spr(e_valid_frames[flr(e_frame)], e.x+cemera_offset, e.y, 2, 2, flip_e)
+
+        print("player hp: " ..player_hp,c.x+64-(48/2),20)
+        if score ==0 then
+            print("score: " ..score,c.x+64-(32/2),28) --8
+        elseif score >=1 then
+            print("score: " ..score .."00",c.x+64-(40/2),28)
+        elseif score >=10 then
+            print("score: " ..score .."00",c.x+64-(44/2),28) 
+        elseif score >=100 then
+            print("score: " ..score .."00",c.x+64-(48/2),28)
+        elseif score >=1000 then
+            print("score: " ..score .."00",c.x+64-(52/2),28)
+            print("get a fucking life",c.x+64-(72/2),36)
+        elseif score >=10000 then
+            print("score: " ..score .."00",c.x+64-(56/2),28)
+        end
+    elseif game =="lose" then
+        cls()
+        print("game over",c.x+64-(36/2),64-4)
+        print("score: "..score,c.x+64-(36/2),64+4+8)
+
     end
 
     if debug == true then
@@ -347,13 +380,7 @@ function _draw()
 
 end
 
-function add_score()
-    ones += 200
-        while ones >= 1000 do
-            ones -= 1000
-            thousands += 1
-        end
-end
+
 
 function player_attack()
 	if btn(4) then
@@ -376,6 +403,9 @@ function reset_enemy_to_the_left()
     force =default_force
 
     warning_trigerred =2
+
+    enemy_sfx_played_1 =false
+    enemy_sfx_played_2 =false
 end
 
 function reset_enemy_to_the_right()
@@ -389,4 +419,7 @@ function reset_enemy_to_the_right()
     force =default_force
     
     warning_trigerred =1
+
+    enemy_sfx_played_1 =false
+    enemy_sfx_played_2 =false
 end
